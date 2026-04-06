@@ -99,7 +99,7 @@ RULES:
 def rag_fallback(query):
     vector_db = st.session_state.vector_store
     llm = load_llm(groq_api_key)
-
+st.write("KEY:", groq_api_key)
     results = vector_db.similarity_search(query, k=3)
 
     if not results:
@@ -168,4 +168,3 @@ if st.session_state.document_uploaded:
             {"role": "assistant", "content": answer}
         )
 
-st.write("KEY:", groq_api_key)
