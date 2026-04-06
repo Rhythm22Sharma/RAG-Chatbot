@@ -1,5 +1,5 @@
-import streamlit as st
 import os
+import streamlit as st
 
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -10,17 +10,14 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
-# ------------------ API KEY ------------------ #
-groq_api_key = os.getenv("GROQ_API_KEY")
+# ✅ Get API key from Streamlit secrets ONLY
+groq_api_key = st.secrets.get("GROQ_API_KEY")
 
 if not groq_api_key:
-    groq_api_key = st.secrets.get("GROQ_API_KEY")
-
-if not groq_api_key:
-    st.error("❌ GROQ_API_KEY missing")
+    st.error("❌ GROQ_API_KEY missing in Streamlit secrets")
     st.stop()
-st.write("KEY LOADED:", groq_api_key[:6])
-# ------------------ SESSION STATE ------------------ #
+
+# ✅ Session state
 if "document_uploaded" not in st.session_state:
     st.session_state.document_uploaded = False
 if "agent" not in st.session_state:
@@ -30,22 +27,31 @@ if "vector_store" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ------------------ LOAD EMBEDDINGS ------------------ #
+# ✅ Cache models
+@st.cache_resource
 def load_embeddings():
     return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-# ------------------ LOAD LLM ------------------ #
+@st.cache_resource
 def load_llm():
     return ChatGroq(
         model="llama-3.3-70b-versatile",
         api_key=groq_api_key
     )
 
-# ------------------ PROCESS DOCUMENT ------------------ #
-def process_document(path):
-    loader = PyPDFDirectoryLoader(path)
+# ✅ Process PDFs
+def process_document(uploaded_files):
+    os.makedirs("temp_docs", exist_ok=True)
+
+    # Save uploaded files
+    for file in uploaded_files:
+        file_path = os.path.join("temp_docs", file.name)
+        with open(file_path, "wb") as f:
+            f.write(file.getvalue())
+
+    loader = PyPDFDirectoryLoader("temp_docs")
     docs = loader.load()
 
     if not docs:
@@ -99,10 +105,9 @@ RULES:
     st.session_state.agent = agent
     st.session_state.document_uploaded = True
 
-# ------------------ FALLBACK ------------------ #
+# ✅ Fallback (if agent fails)
 def rag_fallback(query):
     vector_db = st.session_state.vector_store
-
     llm = load_llm()
 
     results = vector_db.similarity_search(query, k=3)
@@ -119,10 +124,13 @@ Answer using ONLY this context:
 
 Question: {query}
 """
-
     return llm.invoke(prompt).content
 
-# ------------------ UI: UPLOAD ------------------ #
+
+# ✅ UI Config
+st.set_page_config(page_title="PDF RAG Agent", page_icon="📄")
+
+# ✅ Upload Screen
 if not st.session_state.document_uploaded:
     st.title("📄 PDF RAG Agent")
 
@@ -134,21 +142,14 @@ if not st.session_state.document_uploaded:
 
     if uploaded:
         with st.spinner("Processing..."):
-            path = "./doc_files/"
-            os.makedirs(path, exist_ok=True)
-
-            for file in uploaded:
-                with open(os.path.join(path, file.name), "wb") as f:
-                    f.write(file.getvalue())
-
-            process_document(path)
-
+            process_document(uploaded)
         st.rerun()
 
-# ------------------ UI: CHAT ------------------ #
-if st.session_state.document_uploaded:
+# ✅ Chat Screen
+else:
     st.title("💬 Chat with your PDFs")
 
+    # Show chat history
     for msg in st.session_state.messages:
         st.chat_message(msg["role"]).markdown(msg["content"])
 
