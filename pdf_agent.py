@@ -13,8 +13,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
-groq_api_key = os.getenv("GROQ_API_KEY")
-
+groq_api_key = os.getenv("GROQ_API_KEY") or st.secrets["GROQ_API_KEY"]
 if not groq_api_key:
     st.error("❌ GROQ_API_KEY missing")
     st.stop()
