@@ -13,7 +13,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 st.set_page_config(page_title="PDF RAG Agent", page_icon="📄")
 
-# ✅ Load API key - works on Streamlit Cloud and other platforms
+# Load API key - works on Streamlit Cloud and other platforms
 groq_api_key = None
 
 try:
@@ -28,7 +28,7 @@ if not groq_api_key:
     st.error("❌ GROQ_API_KEY not found in secrets or environment variables")
     st.stop()
 
-# ✅ Session state
+#Session state
 if "document_uploaded" not in st.session_state:
     st.session_state.document_uploaded = False
 if "agent" not in st.session_state:
@@ -38,14 +38,14 @@ if "vector_store" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ✅ Cache embeddings only (not LLM)
+# Cache embeddings only (not LLM)
 @st.cache_resource
 def load_embeddings():
     return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-# ✅ Always create fresh LLM with explicit key - NO caching
+# Always create fresh LLM with explicit key - NO caching
 def load_llm():
     return ChatGroq(
         model="llama-3.3-70b-versatile",
@@ -53,7 +53,7 @@ def load_llm():
         temperature=0
     )
 
-# ✅ Process PDFs
+# Process PDFs
 def process_document(uploaded_files):
     os.makedirs("temp_docs", exist_ok=True)
 
@@ -110,7 +110,7 @@ RULES:
     st.session_state.document_uploaded = True
 
 
-# ✅ Fallback with explicit key
+# Fallback with explicit key
 def rag_fallback(query):
     vector_db = st.session_state.vector_store
     llm = load_llm()
@@ -130,7 +130,7 @@ Question: {query}
     return llm.invoke(prompt).content
 
 
-# ✅ Upload screen
+# Upload screen
 if not st.session_state.document_uploaded:
     st.title("📄 PDF RAG Agent")
 
@@ -145,7 +145,7 @@ if not st.session_state.document_uploaded:
             process_document(uploaded)
         st.rerun()
 
-# ✅ Chat screen
+# Chat screen
 else:
     st.title("💬 Chat with your PDFs")
 
