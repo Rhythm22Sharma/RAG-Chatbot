@@ -11,6 +11,8 @@ from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
 # ✅ Get API key from Streamlit secrets ONLY
+st.write("SECRET:", st.secrets)
+
 groq_api_key = st.secrets.get("GROQ_API_KEY")
 
 if not groq_api_key:
