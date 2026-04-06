@@ -17,9 +17,9 @@ if not groq_api_key:
     groq_api_key = st.secrets.get("GROQ_API_KEY")
 
 if not groq_api_key:
-    st.error("❌ GROQ API key not found")
+    st.error("❌ GROQ_API_KEY missing")
     st.stop()
-
+st.write("KEY LOADED:", groq_api_key[:6])
 # ------------------ SESSION STATE ------------------ #
 if "document_uploaded" not in st.session_state:
     st.session_state.document_uploaded = False
