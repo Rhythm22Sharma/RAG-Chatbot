@@ -48,7 +48,7 @@ def load_embeddings():
 # ✅ Always create fresh LLM with explicit key - NO caching
 def load_llm():
     return ChatGroq(
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
         api_key=groq_api_key,
         temperature=0
     )
