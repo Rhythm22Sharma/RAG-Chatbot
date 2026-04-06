@@ -167,3 +167,5 @@ if st.session_state.document_uploaded:
         st.session_state.messages.append(
             {"role": "assistant", "content": answer}
         )
+
+st.write("KEY:", groq_api_key)
