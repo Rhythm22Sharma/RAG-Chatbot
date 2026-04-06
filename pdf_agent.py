@@ -10,6 +10,7 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
+# ------------------ API KEY ------------------ #
 groq_api_key = os.getenv("GROQ_API_KEY")
 
 if not groq_api_key:
@@ -19,6 +20,7 @@ if not groq_api_key:
     st.error("❌ GROQ API key not found")
     st.stop()
 
+# ------------------ SESSION STATE ------------------ #
 if "document_uploaded" not in st.session_state:
     st.session_state.document_uploaded = False
 if "agent" not in st.session_state:
@@ -28,19 +30,20 @@ if "vector_store" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-@st.cache_resource
+# ------------------ LOAD EMBEDDINGS ------------------ #
 def load_embeddings():
     return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-@st.cache_resource
-def load_llm(api_key):
+# ------------------ LOAD LLM ------------------ #
+def load_llm():
     return ChatGroq(
         model="llama-3.3-70b-versatile",
-        api_key=api_key
+        api_key=groq_api_key
     )
 
+# ------------------ PROCESS DOCUMENT ------------------ #
 def process_document(path):
     loader = PyPDFDirectoryLoader(path)
     docs = loader.load()
@@ -63,7 +66,7 @@ def process_document(path):
 
     st.session_state.vector_store = vector_db
 
-    llm = load_llm(groq_api_key)
+    llm = load_llm()
 
     @tool
     def retrieve_context(query: str) -> str:
@@ -96,10 +99,12 @@ RULES:
     st.session_state.agent = agent
     st.session_state.document_uploaded = True
 
+# ------------------ FALLBACK ------------------ #
 def rag_fallback(query):
     vector_db = st.session_state.vector_store
-    llm = load_llm(groq_api_key)
-st.write("KEY:", groq_api_key)
+
+    llm = load_llm()
+
     results = vector_db.similarity_search(query, k=3)
 
     if not results:
@@ -117,6 +122,7 @@ Question: {query}
 
     return llm.invoke(prompt).content
 
+# ------------------ UI: UPLOAD ------------------ #
 if not st.session_state.document_uploaded:
     st.title("📄 PDF RAG Agent")
 
@@ -167,4 +173,3 @@ if st.session_state.document_uploaded:
         st.session_state.messages.append(
             {"role": "assistant", "content": answer}
         )
-
