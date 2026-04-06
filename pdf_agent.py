@@ -10,12 +10,13 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
-# ✅ Load API key from Streamlit Secrets into environment
-if "GROQ_API_KEY" not in st.secrets:
+st.set_page_config(page_title="PDF RAG Agent", page_icon="📄")
+
+# ✅ Load API key
+groq_api_key = st.secrets.get("GROQ_API_KEY")
+if not groq_api_key:
     st.error("❌ GROQ_API_KEY missing in Streamlit secrets")
     st.stop()
-
-os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 # ✅ Session state
 if "document_uploaded" not in st.session_state:
@@ -27,25 +28,23 @@ if "vector_store" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# ✅ Cache embeddings
 @st.cache_resource
 def load_embeddings():
     return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-# ✅ Cache LLM (no api_key needed now)
+# ✅ Key change: pass api_key explicitly, underscore prefix skips hashing
 @st.cache_resource
-def load_llm():
+def load_llm(_api_key: str):
     return ChatGroq(
-        model="llama3-70b-8192"   # ✅ more stable model
+        model="llama3-70b-8192",
+        api_key=_api_key
     )
 
-# ✅ Process PDFs
 def process_document(uploaded_files):
     os.makedirs("temp_docs", exist_ok=True)
 
-    # Save uploaded files
     for file in uploaded_files:
         file_path = os.path.join("temp_docs", file.name)
         with open(file_path, "wb") as f:
@@ -65,23 +64,18 @@ def process_document(uploaded_files):
     docs = splitter.split_documents(docs)
 
     embeddings = load_embeddings()
-
-    vector_db = InMemoryVectorStore.from_documents(
-        docs, embeddings
-    )
-
+    vector_db = InMemoryVectorStore.from_documents(docs, embeddings)
     st.session_state.vector_store = vector_db
 
-    llm = load_llm()
+    # ✅ Pass key explicitly every time
+    llm = load_llm(groq_api_key)
 
     @tool
     def retrieve_context(query: str) -> str:
         """Retrieve relevant document chunks."""
         results = vector_db.similarity_search(query, k=3)
-
         if not results:
             return "No context found"
-
         return "\n\n".join([doc.page_content for doc in results])
 
     system_prompt = """
@@ -94,7 +88,6 @@ RULES:
 """
 
     memory = MemorySaver()
-
     agent = create_react_agent(
         model=llm,
         tools=[retrieve_context],
@@ -106,18 +99,16 @@ RULES:
     st.session_state.document_uploaded = True
 
 
-# ✅ Fallback
 def rag_fallback(query):
     vector_db = st.session_state.vector_store
-    llm = load_llm()
+    # ✅ Pass key explicitly
+    llm = load_llm(groq_api_key)
 
     results = vector_db.similarity_search(query, k=3)
-
     if not results:
         return "No relevant info found"
 
     context = "\n\n".join([doc.page_content for doc in results])
-
     prompt = f"""
 Answer using ONLY this context:
 
@@ -129,9 +120,6 @@ Question: {query}
 
 
 # ✅ UI
-st.set_page_config(page_title="PDF RAG Agent", page_icon="📄")
-
-# Upload screen
 if not st.session_state.document_uploaded:
     st.title("📄 PDF RAG Agent")
 
@@ -146,7 +134,6 @@ if not st.session_state.document_uploaded:
             process_document(uploaded)
         st.rerun()
 
-# Chat screen
 else:
     st.title("💬 Chat with your PDFs")
 
@@ -166,7 +153,6 @@ else:
                     {"configurable": {"thread_id": "pdf_chat"}}
                 )
                 answer = response["messages"][-1].content
-
             except Exception:
                 answer = rag_fallback(query)
 
