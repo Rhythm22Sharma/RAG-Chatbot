@@ -1,9 +1,6 @@
 import streamlit as st
 import os
 
-import os
-import streamlit as st
-
 from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -13,9 +10,13 @@ from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 
-groq_api_key = os.getenv("GROQ_API_KEY") or st.secrets["GROQ_API_KEY"]
+groq_api_key = os.getenv("GROQ_API_KEY")
+
 if not groq_api_key:
-    st.error("❌ GROQ_API_KEY missing")
+    groq_api_key = st.secrets.get("GROQ_API_KEY")
+
+if not groq_api_key:
+    st.error("❌ GROQ API key not found")
     st.stop()
 
 if "document_uploaded" not in st.session_state:
@@ -34,10 +35,10 @@ def load_embeddings():
     )
 
 @st.cache_resource
-def load_llm():
+def load_llm(api_key):
     return ChatGroq(
         model="llama-3.3-70b-versatile",
-        api_key=groq_api_key
+        api_key=api_key
     )
 
 def process_document(path):
@@ -62,7 +63,7 @@ def process_document(path):
 
     st.session_state.vector_store = vector_db
 
-    llm = load_llm()
+    llm = load_llm(groq_api_key)
 
     @tool
     def retrieve_context(query: str) -> str:
@@ -97,7 +98,7 @@ RULES:
 
 def rag_fallback(query):
     vector_db = st.session_state.vector_store
-    llm = load_llm()
+    llm = load_llm(groq_api_key)
 
     results = vector_db.similarity_search(query, k=3)
 
@@ -138,6 +139,7 @@ if not st.session_state.document_uploaded:
 
         st.rerun()
 
+# ------------------ UI: CHAT ------------------ #
 if st.session_state.document_uploaded:
     st.title("💬 Chat with your PDFs")
 
@@ -152,14 +154,13 @@ if st.session_state.document_uploaded:
 
         with st.spinner("Thinking..."):
             try:
-              
                 response = st.session_state.agent.invoke(
                     {"messages": [{"role": "user", "content": query}]},
                     {"configurable": {"thread_id": "pdf_chat"}}
                 )
                 answer = response["messages"][-1].content
 
-            except Exception as e:
+            except Exception:
                 answer = rag_fallback(query)
 
         st.chat_message("assistant").markdown(answer)
