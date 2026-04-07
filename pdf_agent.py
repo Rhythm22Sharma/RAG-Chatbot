@@ -13,7 +13,6 @@ from langgraph.checkpoint.memory import MemorySaver
 
 st.set_page_config(page_title="PDF RAG Agent", page_icon="📄")
 
-# Load API key - works on Streamlit Cloud and other platforms
 groq_api_key = None
 
 try:
@@ -38,14 +37,13 @@ if "vector_store" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Cache embeddings only (not LLM)
+# Cache embeddings only 
 @st.cache_resource
 def load_embeddings():
     return HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-# Always create fresh LLM with explicit key - NO caching
 def load_llm():
     return ChatGroq(
         model="llama-3.3-70b-versatile",
@@ -110,7 +108,6 @@ RULES:
     st.session_state.document_uploaded = True
 
 
-# Fallback with explicit key
 def rag_fallback(query):
     vector_db = st.session_state.vector_store
     llm = load_llm()
@@ -130,7 +127,6 @@ Question: {query}
     return llm.invoke(prompt).content
 
 
-# Upload screen
 if not st.session_state.document_uploaded:
     st.title("📄 PDF RAG Agent")
 
@@ -145,11 +141,9 @@ if not st.session_state.document_uploaded:
             process_document(uploaded)
         st.rerun()
 
-# Chat screen
 else:
     st.title("💬 Chat with your PDFs")
 
-    # 🔑 Key test button - remove after confirming it works
     if st.button("🔑 Test Groq Key"):
         try:
             client = Groq(api_key=groq_api_key)
@@ -162,7 +156,6 @@ else:
         except Exception as e:
             st.error(f"❌ Key test failed: {type(e).__name__}: {str(e)}")
 
-    # Chat history
     for msg in st.session_state.messages:
         st.chat_message(msg["role"]).markdown(msg["content"])
 
@@ -175,7 +168,6 @@ else:
         with st.spinner("Thinking..."):
             answer = None
 
-            # Try agent first
             try:
                 response = st.session_state.agent.invoke(
                     {"messages": [{"role": "user", "content": query}]},
@@ -186,7 +178,6 @@ else:
             except Exception as agent_error:
                 st.warning(f"⚠️ Agent failed: {type(agent_error).__name__}: {str(agent_error)}")
 
-                # Try fallback
                 try:
                     answer = rag_fallback(query)
 
